@@ -2,7 +2,7 @@
 
 ## Dokumentacja + slajdy
 
-* https://infotraining.bitbucket.io/cpp-thd
+* https://cpp-thd.infotraining.pl
 
 ## Konfiguracja środowiska
 
