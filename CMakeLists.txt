@@ -40,6 +40,7 @@ enable_testing()
 
 add_subdirectory(threads)
 add_subdirectory(futures)
+add_subdirectory(thread-exceptions)
 
 # Exercises
 add_subdirectory(_exercises/monte-carlo-pi)
