@@ -41,6 +41,7 @@ enable_testing()
 add_subdirectory(threads)
 add_subdirectory(futures)
 add_subdirectory(thread-exceptions)
+add_subdirectory(synchronization-locking)
 
 # Exercises
 add_subdirectory(_exercises/monte-carlo-pi)

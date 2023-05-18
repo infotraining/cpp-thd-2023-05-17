@@ -5,6 +5,7 @@
 #include <iostream>
 #include <random>
 #include <thread>
+#include <latch>
 
 /*******************************************************
  * https://academo.org/demos/estimating-pi-monte-carlo
@@ -16,6 +17,22 @@ const uintmax_t N = 100'000'000;
 
 void calc_hits(const uintmax_t count, uintmax_t& hits)
 {
+    std::mt19937_64 rnd_gen(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+    std::uniform_real_distribution<double> rnd(0, 1.0);
+
+    for (uintmax_t n = 0; n < count; ++n)
+    {
+        double x = rnd(rnd_gen);
+        double y = rnd(rnd_gen);
+        if (x * x + y * y < 1)
+            hits++;
+    }
+}
+
+void calc_hits_with_latch(const uintmax_t count, uintmax_t& hits, std::latch& starter)
+{
+    starter.arrive_and_wait();
+
     std::mt19937_64 rnd_gen(std::hash<std::thread::id>{}(std::this_thread::get_id()));
     std::uniform_real_distribution<double> rnd(0, 1.0);
 
@@ -240,6 +257,41 @@ void pi_with_padding()
     cout << "Elapsed = " << elapsed_time << "ms" << endl;
 }
 
+void pi_many_threads_latch()
+{
+    cout << "Pi calculation started!" << endl;
+    const auto start = chrono::high_resolution_clock::now();
+
+    uintmax_t hits = 0;
+    const unsigned int number_of_cores = 512;
+    std::latch starter{number_of_cores};
+    const uintmax_t chunk_size = N / number_of_cores;
+
+    std::vector<uintmax_t> hits_vec(number_of_cores, 0);
+    std::vector<std::thread> threads;
+
+    for (int i = 0; i < number_of_cores; ++i)
+    {
+        threads.push_back(std::thread( [i, chunk_size, &hits_vec, &starter](){ calc_hits_with_latch(chunk_size, hits_vec[i], starter); }));
+    }
+
+    std::cout << "No of threads:" << threads.size() << "\n";
+
+    for (auto& thread : threads)
+        if (thread.joinable())
+            thread.join();
+
+    hits = std::accumulate(hits_vec.begin(), hits_vec.end(), 0L);
+
+    const double pi = static_cast<double>(hits) / N * 4;
+
+    const auto end = chrono::high_resolution_clock::now();
+    const auto elapsed_time = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+
+    cout << "Pi = " << pi << endl;
+    cout << "Elapsed = " << elapsed_time << "ms" << endl;
+}
+
 int main()
 {
     single_thread_pi();
@@ -259,4 +311,8 @@ int main()
     std::cout << "///////////////////////////////////////////////////" << std::endl;
 
     pi_with_padding();
+
+    std::cout << "///////////////////////////////////////////////////" << std::endl;
+
+    pi_many_threads_latch();
 }
