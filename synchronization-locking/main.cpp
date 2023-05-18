@@ -39,6 +39,11 @@ struct SynchronizedValue
     {
         mtx_value.unlock();
     }
+
+    std::lock_guard<TMutex> with_lock()
+    {
+        return std::lock_guard{mtx_value};
+    }
 };
 
 void run(SynchronizedValue<int>& counter)
@@ -49,10 +54,15 @@ void run(SynchronizedValue<int>& counter)
         // ++value;
         // mtx_value.unlock(); // end of CS
 
-        {            
-            std::lock_guard lk{counter}; // begin of CS - mtx_value.lock()            
-            ++counter.value;
-        } // end of CS - mtx_value.unlock()
+        // {            
+        //     std::lock_guard lk{counter}; // begin of CS - mtx_value.lock()            
+        //     ++counter.value;
+        // } // end of CS - mtx_value.unlock()
+
+        {
+            auto lk = counter.with_lock();
+            counter.value++;
+        }
     }
 }
 
