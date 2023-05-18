@@ -150,8 +150,9 @@ void calc_hits(uintmax_t N, std::atomic<uintmax_t>& hits)
             local_hits++;
         }
     }
-
-    hits += local_hits;
+    
+    //hits += local_hits;
+    hits.fetch_add(1, std::memory_order_relaxed);
 }
 
 void pi_with_atomic()
