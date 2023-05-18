@@ -36,8 +36,10 @@ public:
         // since C++20
         std::scoped_lock lks{mtx_balance_, to.mtx_balance_};
 
-        this->withdraw(amount);        
-        to.deposit(amount);     
+        // this->withdraw(amount);        
+        // to.deposit(amount);        
+        balance_ -= amount;
+        to.balance_ += amount;        
     }
 
     void withdraw(double amount)
