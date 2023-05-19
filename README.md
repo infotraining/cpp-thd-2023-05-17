@@ -39,4 +39,3 @@ Jeśli uczestnicy szkolenia korzystają w pracy z Docker'a, to należy zainstalo
     * po instalacji wtyczki - należy otworzyć w VS Code folder zawierający sklonowane repozytorium i
       z palety poleceń (Ctrl+Shift+P) wybrać opcję **Dev Containers: Rebuild and Reopen in Container**
 
-folly

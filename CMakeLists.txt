@@ -45,6 +45,7 @@ add_subdirectory(synchronization-locking)
 add_subdirectory(event-synchronization)
 add_subdirectory(spin-lock)
 add_subdirectory(lookup-table)
+add_subdirectory(thread-pool)
 
 # Exercises
 add_subdirectory(_exercises/monte-carlo-pi)
