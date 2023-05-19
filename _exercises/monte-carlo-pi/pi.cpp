@@ -5,7 +5,11 @@
 #include <iostream>
 #include <random>
 #include <thread>
+#include <numeric>
 #include <latch>
+#include <future>
+#include <algorithm>
+#include <execution>
 
 /*******************************************************
  * https://academo.org/demos/estimating-pi-monte-carlo
@@ -27,6 +31,23 @@ void calc_hits(const uintmax_t count, uintmax_t& hits)
         if (x * x + y * y < 1)
             hits++;
     }
+}
+
+uintmax_t count_hits(const uintmax_t count)
+{
+    std::mt19937_64 rnd_gen(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+    std::uniform_real_distribution<double> rnd(0, 1.0);
+
+    uintmax_t hits = 0;
+    for (uintmax_t n = 0; n < count; ++n)
+    {
+        double x = rnd(rnd_gen);
+        double y = rnd(rnd_gen);
+        if (x * x + y * y < 1)
+            hits++;
+    }
+
+    return hits;
 }
 
 void calc_hits_with_latch(const uintmax_t count, uintmax_t& hits, std::latch& starter)
@@ -87,7 +108,7 @@ void single_thread_pi()
     //////////////////////////////////////////////////////////////////////////////
     // single thread
 
-    cout << "Pi calculation started!" << endl;
+    cout << "Pi calculation started! Single thread!" << endl;
     const auto start = chrono::high_resolution_clock::now();
 
     uintmax_t hits = 0;
@@ -105,7 +126,7 @@ void single_thread_pi()
 
 void pi_many_threads_hot_loop()
 {
-    cout << "Pi calculation started!" << endl;
+    cout << "Pi calculation started! Many threads - hot loop" << endl;
     const auto start = chrono::high_resolution_clock::now();
 
     uintmax_t hits = 0;
@@ -152,7 +173,7 @@ void calc_hits(uintmax_t N, std::atomic<uintmax_t>& hits)
     }
     
     //hits += local_hits;
-    hits.fetch_add(1, std::memory_order_relaxed);
+    hits.fetch_add(local_hits, std::memory_order_relaxed);
 }
 
 void pi_with_atomic()
@@ -161,7 +182,7 @@ void pi_with_atomic()
     const uintmax_t chunk_size = N / number_of_cores;
     cout << "number_of_cores: " << number_of_cores << endl;
 
-    cout << "Pi calculation started!" << endl;
+    cout << "Pi calculation started! Atomic!" << endl;
     const auto start = chrono::high_resolution_clock::now();
 
     std::atomic<uintmax_t> hits = 0;
@@ -198,7 +219,7 @@ void pi_local_counter()
 
     cout << "number_of_cores: " << number_of_cores << endl;
 
-    cout << "Pi calculation started!" << endl;
+    cout << "Pi calculation started! Local counter!" << endl;
     const auto start = chrono::high_resolution_clock::now();
 
     std::vector<uintmax_t> hits_vec(number_of_cores);
@@ -228,7 +249,7 @@ void pi_local_counter()
 
 void pi_with_padding()
 {
-    cout << "Pi calculation started!" << endl;
+    cout << "Pi calculation started! Padding!" << endl;
     const auto start = chrono::high_resolution_clock::now();
 
     uintmax_t hits = 0;
@@ -260,7 +281,7 @@ void pi_with_padding()
 
 void pi_many_threads_latch()
 {
-    cout << "Pi calculation started!" << endl;
+    cout << "Pi calculation started! Latch!" << endl;
     const auto start = chrono::high_resolution_clock::now();
 
     uintmax_t hits = 0;
@@ -293,6 +314,67 @@ void pi_many_threads_latch()
     cout << "Elapsed = " << elapsed_time << "ms" << endl;
 }
 
+uintmax_t calculate_hits(const uintmax_t N)
+{
+    uintmax_t hits = 0;
+    calc_hits(N, hits);
+    return hits;
+}
+
+void pi_future()
+{
+    const uintmax_t number_of_cores = std::thread::hardware_concurrency();
+    uintmax_t hits = 0;
+
+    cout << "number_of_cores: " << number_of_cores << endl;
+
+    cout << "Pi calculation started! Future!" << endl;
+    const auto start = chrono::high_resolution_clock::now();
+
+    std::vector<std::future<uintmax_t>> futures;
+    for (auto idx = 0; idx < number_of_cores; ++idx)
+    {
+        futures.push_back(std::async(std::launch::async, count_hits, N / number_of_cores));        
+    }
+    
+    // for (auto idx = 0; idx < number_of_cores; ++idx)
+    // {
+    //     hits += futures[idx].get();
+    // }
+
+    hits = std::accumulate(futures.begin(), futures.end(), 0L, [](auto result, auto& f) { return result + f.get(); });
+
+    const double pi = static_cast<double>(hits) / N * 4;
+
+    const auto end = chrono::high_resolution_clock::now();
+    const auto elapsed_time = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+
+    cout << "Pi = " << pi << endl;
+    cout << "Elapsed = " << elapsed_time << "ms" << endl;    
+}
+
+void pi_parallel_stl()
+{
+    const uintmax_t number_of_cores = std::thread::hardware_concurrency();    
+
+    cout << "number_of_cores: " << number_of_cores << endl;
+
+    cout << "Pi calculation started! STL!" << endl;
+    const auto start = chrono::high_resolution_clock::now();
+
+    std::vector<uintmax_t> chunks(number_of_cores, N / number_of_cores);
+    auto hits = std::transform_reduce(std::execution::par_unseq, std::begin(chunks), std::end(chunks), 
+                                      0ULL, std::plus{}, [](auto n) { return count_hits(n); });
+
+    const double pi = static_cast<double>(hits) / N * 4;
+
+    const auto end = chrono::high_resolution_clock::now();
+    const auto elapsed_time = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+
+    cout << "Pi = " << pi << endl;
+    cout << "Elapsed = " << elapsed_time << "ms" << endl;    
+}
+
 int main()
 {
     single_thread_pi();
@@ -316,4 +398,12 @@ int main()
     std::cout << "///////////////////////////////////////////////////" << std::endl;
 
     pi_many_threads_latch();
+
+    std::cout << "///////////////////////////////////////////////////" << std::endl;
+
+    pi_future();
+
+    std::cout << "///////////////////////////////////////////////////" << std::endl;
+
+    pi_parallel_stl();
 }
