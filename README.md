@@ -38,3 +38,5 @@ Jeśli uczestnicy szkolenia korzystają w pracy z Docker'a, to należy zainstalo
   * Dev Containers ([wymagania](https://code.visualstudio.com/docs/devcontainers/containers#_system-requirements))
     * po instalacji wtyczki - należy otworzyć w VS Code folder zawierający sklonowane repozytorium i
       z palety poleceń (Ctrl+Shift+P) wybrać opcję **Dev Containers: Rebuild and Reopen in Container**
+
+folly
