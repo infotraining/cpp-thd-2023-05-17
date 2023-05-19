@@ -34,6 +34,42 @@ void save_to_file(const std::string& filename)
     std::cout << "File saved: " << filename << std::endl;
 }
 
+class SquareCalculator
+{
+    std::promise<int> promise_;
+public:
+    void calculate(int x)
+    {
+        try
+        {
+            int result = calculate_square(x);
+            promise_.set_value(result);
+        }
+        catch(...)
+        {
+            promise_.set_exception(std::current_exception());
+        }        
+    }
+
+    std::future<int> get_future()
+    {
+        return promise_.get_future();
+    }
+};
+
+template <typename Callable>
+auto spawn_task(Callable&& callable)
+{
+    using ResultT = decltype(callable());
+    std::packaged_task<ResultT()> pt{std::forward<Callable>(callable)};
+    std::future<ResultT> f = pt.get_future();
+
+    std::thread thd{std::move(pt)}; // async call of function
+    thd.detach();
+
+    return f;
+}
+
 int main()
 {
     std::future<int> f1 = std::async(std::launch::async, &calculate_square, 13);
@@ -71,4 +107,23 @@ int main()
     auto a2 = std::async(std::launch::async, &save_to_file, "data2.txt");
     auto a3 = std::async(std::launch::async, &save_to_file, "data3.txt");
     auto a4 = std::async(std::launch::async, &save_to_file, "data4.txt");
+
+    std::cout << "////////////////////////////////////////////////////////" << std::endl;
+
+    SquareCalculator calc;
+
+    auto f_result = calc.get_future();
+
+    {
+        std::jthread thd{ [&calc] { calc.calculate(13); }};
+
+        std::cout << "f_result: " << f_result.get() << "\n";
+    }
+
+    std::cout << "////////////////////////////////////////////////////////" << std::endl;
+    spawn_task([] { save_to_file("data1.txt");} );
+    spawn_task([] { save_to_file("data2.txt");} );
+    spawn_task([] { save_to_file("data3.txt");} );
+    auto f_task = spawn_task([] { return calculate_square(41); });
+    std::cout << "f_task:" << f_task.get() << "\n";
 }
